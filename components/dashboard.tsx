@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Lock, Unlock, TrendingUp, Wallet, Shield, RefreshCw, Plus, History } from "lucide-react"
 import Link from "next/link"
@@ -10,18 +10,14 @@ import { useWallet } from "@/hooks/use-wallet"
 import { useTokenDetection } from "@/hooks/use-token-detection"
 import { getCurrentBlockchainConfig } from "@/lib/blockchain-config"
 import { useHistory } from "@/hooks/use-history"
-import { CopyButton } from "@/components/ui/copy-button"
-import type { HistoryEntry } from "@/lib/encrypted-storage"
 
 export default function Dashboard() {
   const { wallet } = useWallet()
   const { tokens, isLoading: tokensLoading, refreshTokenBalances, scanForTokens } = useTokenDetection(wallet.address)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [recentActivity, setRecentActivity] = useState<HistoryEntry[]>([])
-  const [loadingActivity, setLoadingActivity] = useState(false)
 
   const currentConfig = getCurrentBlockchainConfig()
-  const { getRecentActivity, hasHistory } = useHistory()
+  const { addHistoryEntry } = useHistory()
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -35,37 +31,10 @@ export default function Dashboard() {
     setTimeout(() => setIsRefreshing(false), 1000)
   }
 
-  // Load recent activity
-  useEffect(() => {
-    const loadRecentActivity = async () => {
-      if (!wallet.address || !hasHistory) return
-
-      setLoadingActivity(true)
-      try {
-        const activity = await getRecentActivity(3)
-        setRecentActivity(activity)
-      } catch (error) {
-        console.error("Error loading recent activity:", error)
-      } finally {
-        setLoadingActivity(false)
-      }
-    }
-
-    loadRecentActivity()
-  }, [wallet.address, hasHistory, getRecentActivity])
-
-  const formatDate = (timestamp: number) => {
-    const now = Date.now()
-    const diff = now - timestamp
-    const minutes = Math.floor(diff / 60000)
-    const hours = Math.floor(diff / 3600000)
-    const days = Math.floor(diff / 86400000)
-
-    if (minutes < 1) return "Just now"
-    if (minutes < 60) return `${minutes} minute${minutes > 1 ? "s" : ""} ago`
-    if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`
-    return `${days} day${days > 1 ? "s" : ""} ago`
-  }
+  const [recentActivity] = useState([
+    { type: "lock", amount: "0.5 MIND", hash: "0x1a2b...3c4d", status: "active", timestamp: "2 hours ago" },
+    { type: "unlock", amount: "100 USDC", hash: "0x5e6f...7g8h", status: "completed", timestamp: "1 day ago" },
+  ])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-midnight-black via-deep-privacy-blue to-midnight-black relative overflow-hidden">
@@ -275,119 +244,50 @@ export default function Dashboard() {
             </Link>
           </div>
 
-          {loadingActivity ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="p-6 rounded-2xl backdrop-blur-md bg-frosted-gray/10 border border-frosted-gray/20 animate-pulse"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-14 h-14 rounded-2xl bg-frosted-gray/20"></div>
-                      <div>
-                        <div className="h-5 w-32 bg-frosted-gray/20 rounded mb-2"></div>
-                        <div className="h-3 w-24 bg-frosted-gray/20 rounded"></div>
-                      </div>
+          <div className="space-y-4">
+            {recentActivity.map((activity, index) => (
+              <div
+                key={index}
+                className="p-6 rounded-2xl backdrop-blur-md bg-frosted-gray/10 border border-frosted-gray/20 hover:border-neon-cyan/30 transition-all duration-300"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div
+                      className={`w-14 h-14 rounded-2xl flex items-center justify-center backdrop-blur-md border ${
+                        activity.type === "lock"
+                          ? "bg-deep-privacy-blue/30 border-neon-cyan/30"
+                          : "bg-emerald-green/30 border-emerald-green/30"
+                      }`}
+                    >
+                      {activity.type === "lock" ? (
+                        <Lock className="w-7 h-7 text-neon-cyan" />
+                      ) : (
+                        <Unlock className="w-7 h-7 text-emerald-green" />
+                      )}
                     </div>
-                    <div className="text-right">
-                      <div className="h-6 w-16 bg-frosted-gray/20 rounded mb-2"></div>
-                      <div className="h-3 w-12 bg-frosted-gray/20 rounded"></div>
+                    <div>
+                      <p className="text-white font-semibold text-lg">
+                        {activity.type === "lock" ? "Locked" : "Unlocked"} {activity.amount}
+                      </p>
+                      <p className="text-frosted-gray text-sm">Secret: {activity.hash}</p>
                     </div>
+                  </div>
+                  <div className="text-right">
+                    <div
+                      className={`px-4 py-2 rounded-full text-sm font-medium backdrop-blur-md ${
+                        activity.status === "active"
+                          ? "bg-emerald-green/20 text-emerald-green border border-emerald-green/50"
+                          : "bg-frosted-gray/20 text-frosted-gray border border-frosted-gray/50"
+                      }`}
+                    >
+                      {activity.status}
+                    </div>
+                    <p className="text-frosted-gray text-sm mt-2">{activity.timestamp}</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : recentActivity.length > 0 ? (
-            <div className="space-y-4">
-              {recentActivity.map((activity) => (
-                <MicroInteraction key={activity.id} trigger="hover" type="glow" intensity="low" className="rounded-2xl">
-                  <div className="p-6 rounded-2xl backdrop-blur-md bg-frosted-gray/10 border border-frosted-gray/20 hover:border-neon-cyan/30 transition-all duration-300">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div
-                          className={`w-14 h-14 rounded-2xl flex items-center justify-center backdrop-blur-md border ${
-                            activity.type === "lock"
-                              ? "bg-deep-privacy-blue/30 border-neon-cyan/30"
-                              : "bg-emerald-green/30 border-emerald-green/30"
-                          }`}
-                        >
-                          {activity.type === "lock" ? (
-                            <Lock className="w-7 h-7 text-neon-cyan" />
-                          ) : (
-                            <Unlock className="w-7 h-7 text-emerald-green" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-white font-semibold text-lg">
-                            {activity.type === "lock" ? "Locked" : "Unlocked"} {activity.amount} {activity.token.symbol}
-                          </p>
-                          <div className="flex items-center space-x-2 text-sm text-frosted-gray">
-                            <span>Secret:</span>
-                            <CopyButton text={activity.hash} className="text-frosted-gray hover:text-neon-cyan text-xs">
-                              {activity.hash.slice(0, 10)}...
-                            </CopyButton>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div
-                          className={`px-4 py-2 rounded-full text-sm font-medium backdrop-blur-md border ${
-                            activity.status === "completed"
-                              ? "bg-emerald-green/20 text-emerald-green border-emerald-green/50"
-                              : activity.status === "pending"
-                                ? "bg-golden-yellow/20 text-golden-yellow border-golden-yellow/50"
-                                : "bg-crimson-red/20 text-crimson-red border-crimson-red/50"
-                          }`}
-                        >
-                          {activity.status}
-                        </div>
-                        <p className="text-frosted-gray text-sm mt-2">{formatDate(activity.timestamp)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </MicroInteraction>
-              ))}
-            </div>
-          ) : hasHistory ? (
-            <div className="text-center py-12">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-frosted-gray/10 flex items-center justify-center">
-                <History className="w-10 h-10 text-frosted-gray" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">No Recent Activity</h3>
-              <p className="text-frosted-gray mb-6">You have transaction history, but no recent activity to display.</p>
-              <Link href="/history">
-                <Button className="bg-neon-cyan text-midnight-black font-semibold rounded-2xl px-6 py-3 hover:bg-neon-cyan/80 transition-colors duration-300">
-                  <History className="w-4 h-4 mr-2" />
-                  View Full History
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-frosted-gray/10 flex items-center justify-center">
-                <History className="w-10 h-10 text-frosted-gray" />
-              </div>
-              <h3 className="text-xl font-semibold text-white mb-2">No Transaction History</h3>
-              <p className="text-frosted-gray mb-6">
-                Your transaction history will appear here after you lock or unlock funds.
-              </p>
-              <div className="flex justify-center space-x-4">
-                <Link href="/lock-funds">
-                  <Button className="bg-neon-cyan text-midnight-black font-semibold rounded-2xl px-6 py-3 hover:bg-neon-cyan/80 transition-colors duration-300">
-                    <Lock className="w-4 h-4 mr-2" />
-                    Lock Funds
-                  </Button>
-                </Link>
-                <Link href="/unlock-funds">
-                  <Button className="bg-emerald-green text-midnight-black font-semibold rounded-2xl px-6 py-3 hover:bg-emerald-green/80 transition-colors duration-300">
-                    <Unlock className="w-4 h-4 mr-2" />
-                    Unlock Funds
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       </div>
     </div>

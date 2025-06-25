@@ -1,121 +1,145 @@
 "use client"
 
-interface TokenInfo {
+export interface CachedToken {
   address: string
-  symbol: string
   name: string
+  symbol: string
   decimals: number
   balance: string
+  lastUpdated: number
   icon: string
-  isLoading: boolean
+  isNative: boolean
 }
 
-interface CacheEntry {
-  data: TokenInfo[]
-  timestamp: number
-  address: string
+export interface TokenCache {
+  [address: string]: CachedToken
 }
 
-class TokenCache {
-  private static instance: TokenCache
-  private readonly CACHE_KEY = "mixion_token_cache"
+class TokenCacheManager {
+  private static instance: TokenCacheManager
+  private cache: Map<string, TokenCache> = new Map()
   private readonly CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
-  private readonly CONTRACT_CACHE_KEY = "mixion_contract_cache"
-  private readonly CONTRACT_CACHE_DURATION = 24 * 60 * 60 * 1000 // 24 hours
+  private readonly STORAGE_KEY = "mixion_token_cache"
 
-  static getInstance(): TokenCache {
-    if (!TokenCache.instance) {
-      TokenCache.instance = new TokenCache()
+  static getInstance(): TokenCacheManager {
+    if (!TokenCacheManager.instance) {
+      TokenCacheManager.instance = new TokenCacheManager()
     }
-    return TokenCache.instance
+    return TokenCacheManager.instance
   }
 
-  private isValidCache(entry: CacheEntry, address: string): boolean {
+  constructor() {
+    this.loadFromStorage()
+  }
+
+  private loadFromStorage(): void {
+    try {
+      const stored = localStorage.getItem(this.STORAGE_KEY)
+      if (stored) {
+        const data = JSON.parse(stored)
+        this.cache = new Map(Object.entries(data))
+      }
+    } catch (error) {
+      console.error("Error loading token cache:", error)
+    }
+  }
+
+  private saveToStorage(): void {
+    try {
+      const data = Object.fromEntries(this.cache)
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data))
+    } catch (error) {
+      console.error("Error saving token cache:", error)
+    }
+  }
+
+  // Get cached tokens for an address
+  getCachedTokens(userAddress: string): CachedToken[] {
+    const userCache = this.cache.get(userAddress.toLowerCase())
+    if (!userCache) return []
+
     const now = Date.now()
-    return entry.address.toLowerCase() === address.toLowerCase() && now - entry.timestamp < this.CACHE_DURATION
-  }
+    const validTokens: CachedToken[] = []
 
-  getCachedTokens(address: string): TokenInfo[] | null {
-    try {
-      const cached = localStorage.getItem(this.CACHE_KEY)
-      if (!cached) return null
-
-      const entry: CacheEntry = JSON.parse(cached)
-      if (this.isValidCache(entry, address)) {
-        return entry.data
+    Object.values(userCache).forEach((token) => {
+      if (now - token.lastUpdated < this.CACHE_DURATION) {
+        validTokens.push(token)
       }
+    })
 
-      // Cache expired, remove it
-      this.clearCache()
-      return null
-    } catch (error) {
-      console.error("Error reading token cache:", error)
-      return null
-    }
+    return validTokens
   }
 
-  setCachedTokens(address: string, tokens: TokenInfo[]): void {
-    try {
-      const entry: CacheEntry = {
-        data: tokens,
-        timestamp: Date.now(),
-        address: address.toLowerCase(),
+  // Cache tokens for a user
+  cacheTokens(userAddress: string, tokens: CachedToken[]): void {
+    const userKey = userAddress.toLowerCase()
+    const userCache: TokenCache = {}
+
+    tokens.forEach((token) => {
+      userCache[token.address.toLowerCase()] = {
+        ...token,
+        lastUpdated: Date.now(),
       }
-      localStorage.setItem(this.CACHE_KEY, JSON.stringify(entry))
-    } catch (error) {
-      console.error("Error setting token cache:", error)
+    })
+
+    this.cache.set(userKey, userCache)
+    this.saveToStorage()
+  }
+
+  // Update single token
+  updateToken(userAddress: string, token: CachedToken): void {
+    const userKey = userAddress.toLowerCase()
+    const userCache = this.cache.get(userKey) || {}
+
+    userCache[token.address.toLowerCase()] = {
+      ...token,
+      lastUpdated: Date.now(),
     }
+
+    this.cache.set(userKey, userCache)
+    this.saveToStorage()
   }
 
-  clearCache(): void {
-    localStorage.removeItem(this.CACHE_KEY)
+  // Check if cache is valid
+  isCacheValid(userAddress: string): boolean {
+    const userCache = this.cache.get(userAddress.toLowerCase())
+    if (!userCache) return false
+
+    const now = Date.now()
+    const tokens = Object.values(userCache)
+
+    return tokens.length > 0 && tokens.some((token) => now - token.lastUpdated < this.CACHE_DURATION)
   }
 
-  // Contract info caching
-  getCachedContractInfo(address: string): any | null {
-    try {
-      const cached = localStorage.getItem(this.CONTRACT_CACHE_KEY)
-      if (!cached) return null
+  // Clear cache for user
+  clearUserCache(userAddress: string): void {
+    this.cache.delete(userAddress.toLowerCase())
+    this.saveToStorage()
+  }
 
-      const contractCache = JSON.parse(cached)
-      const contractInfo = contractCache[address.toLowerCase()]
+  // Clear all cache
+  clearAllCache(): void {
+    this.cache.clear()
+    localStorage.removeItem(this.STORAGE_KEY)
+  }
 
-      if (contractInfo && Date.now() - contractInfo.timestamp < this.CONTRACT_CACHE_DURATION) {
-        return contractInfo.data
+  // Get cached token info (for contract details)
+  getCachedTokenInfo(tokenAddress: string): Omit<CachedToken, "balance" | "lastUpdated"> | null {
+    for (const userCache of this.cache.values()) {
+      const token = userCache[tokenAddress.toLowerCase()]
+      if (token) {
+        return {
+          address: token.address,
+          name: token.name,
+          symbol: token.symbol,
+          decimals: token.decimals,
+          icon: token.icon,
+          isNative: token.isNative,
+        }
       }
-
-      return null
-    } catch (error) {
-      console.error("Error reading contract cache:", error)
-      return null
     }
-  }
-
-  setCachedContractInfo(address: string, contractInfo: any): void {
-    try {
-      const cached = localStorage.getItem(this.CONTRACT_CACHE_KEY)
-      const contractCache = cached ? JSON.parse(cached) : {}
-
-      contractCache[address.toLowerCase()] = {
-        data: contractInfo,
-        timestamp: Date.now(),
-      }
-
-      localStorage.setItem(this.CONTRACT_CACHE_KEY, JSON.stringify(contractCache))
-    } catch (error) {
-      console.error("Error setting contract cache:", error)
-    }
-  }
-
-  clearContractCache(): void {
-    localStorage.removeItem(this.CONTRACT_CACHE_KEY)
-  }
-
-  // Clear all caches when user changes
-  clearAllCaches(): void {
-    this.clearCache()
-    this.clearContractCache()
+    return null
   }
 }
 
-export default TokenCache
+export default TokenCacheManager

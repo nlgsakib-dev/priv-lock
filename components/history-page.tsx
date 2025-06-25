@@ -16,7 +16,7 @@ import { getCurrentBlockchainConfig } from "@/lib/blockchain-config"
 export default function HistoryPage() {
   const router = useRouter()
   const { wallet } = useWallet()
-  const { history, isLoading, error, isUnlocked, unlockHistory, lockHistory, clearHistory, hasHistory } = useHistory()
+  const { history, isLoading, error, isUnlocked, unlockHistory, lockHistory, clearHistory } = useHistory()
 
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState<"all" | "lock" | "unlock">("all")
@@ -40,6 +40,7 @@ export default function HistoryPage() {
   const handleUnlockHistory = async () => {
     const success = await unlockHistory()
     if (!success && error) {
+      // Show error to user
       console.error("Failed to unlock history:", error)
     }
   }
@@ -120,43 +121,7 @@ export default function HistoryPage() {
       </header>
 
       <div className="max-w-6xl mx-auto p-6 relative z-10">
-        {!hasHistory ? (
-          /* No History */
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="text-center max-w-md">
-              <MicroInteraction trigger="hover" type="glow" intensity="medium" className="rounded-3xl">
-                <div className="p-8 rounded-3xl backdrop-blur-md bg-frosted-gray/10 border border-frosted-gray/20">
-                  <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-frosted-gray/20 to-deep-privacy-blue/20 flex items-center justify-center">
-                    <History className="w-10 h-10 text-frosted-gray" />
-                  </div>
-
-                  <h2 className="text-3xl font-bold text-white mb-4">No Transaction History</h2>
-                  <p className="text-frosted-gray mb-8">
-                    You haven't made any transactions yet. Your encrypted history will appear here after you lock or
-                    unlock funds.
-                  </p>
-
-                  <div className="flex justify-center space-x-4">
-                    <Button
-                      onClick={() => router.push("/lock-funds")}
-                      className="bg-neon-cyan hover:bg-neon-cyan/80 text-midnight-black font-semibold rounded-2xl px-6 py-3 transition-all duration-300"
-                    >
-                      <Lock className="w-4 h-4 mr-2" />
-                      Lock Funds
-                    </Button>
-                    <Button
-                      onClick={() => router.push("/unlock-funds")}
-                      className="bg-emerald-green hover:bg-emerald-green/80 text-midnight-black font-semibold rounded-2xl px-6 py-3 transition-all duration-300"
-                    >
-                      <Unlock className="w-4 h-4 mr-2" />
-                      Unlock Funds
-                    </Button>
-                  </div>
-                </div>
-              </MicroInteraction>
-            </div>
-          </div>
-        ) : !isUnlocked ? (
+        {!isUnlocked ? (
           /* Unlock Screen */
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center max-w-md">
