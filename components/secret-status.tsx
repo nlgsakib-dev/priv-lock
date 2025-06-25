@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Eye, Copy, Unlock, Lock, Search } from "lucide-react"
+import { Eye, Unlock, Search } from "lucide-react"
 import { useRouter } from "next/navigation"
 import LetterGlitch from "@/components/ui/letter-glitch"
 import MicroInteraction from "@/components/micro-interactions"
+import { CopyButton } from "@/components/ui/copy-button"
 
 interface Secret {
   id: string
@@ -135,12 +136,10 @@ export default function SecretStatus() {
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className="text-frosted-gray font-mono text-sm">{secret.hash.slice(0, 20)}...</span>
-                        <button
-                          onClick={() => copySecret(secret.hash)}
+                        <CopyButton
+                          text={secret.hash}
                           className="text-frosted-gray hover:text-neon-cyan transition-colors duration-300"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </button>
+                        />
                       </div>
                     </div>
                   </div>

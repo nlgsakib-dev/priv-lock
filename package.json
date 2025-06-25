@@ -9,7 +9,9 @@
     "start": "next start"
   },
   "dependencies": {
+    "@chakra-ui/react": "latest",
     "@emotion/is-prop-valid": "latest",
+    "@emotion/react": "latest",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
@@ -38,10 +40,12 @@
     "@radix-ui/react-toggle": "latest",
     "@radix-ui/react-toggle-group": "latest",
     "@radix-ui/react-tooltip": "latest",
+    "@tanstack/react-query": "latest",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "latest",
+    "crypto-js": "latest",
     "date-fns": "4.1.0",
     "embla-carousel-react": "latest",
     "ethers": "latest",
@@ -56,11 +60,14 @@
     "react-dom": "^18",
     "react-hook-form": "latest",
     "react-resizable-panels": "latest",
+    "react-toastify": "latest",
     "recharts": "latest",
     "sonner": "latest",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "latest",
+    "viem": "latest",
+    "wagmi": "latest",
     "zod": "^3.24.1"
   },
   "devDependencies": {
